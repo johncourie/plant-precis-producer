@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% set active = "ingestion" %}
+
+{% block title %}Ingestion — Plant Précis Producer{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h2>Ingest Sources</h2>
+    <p class="page-subtitle">Add botanical texts to your corpus. Drop a PDF to begin.</p>
+</section>
+
+<section class="ingest-drop">
+    <div id="drop-zone" class="drop-zone">
+        <p class="drop-label">Drop PDF here or click to browse</p>
+        <input type="file" id="file-input" accept=".pdf" hidden>
+    </div>
+</section>
+
+<section id="probe-results" class="probe-results hidden">
+    <h3>Probe Results</h3>
+    <div id="probe-data"></div>
+
+    <form id="metadata-form" class="metadata-form">
+        <h3>Source Metadata</h3>
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="meta-id">Source ID</label>
+                <input type="text" id="meta-id" required>
+            </div>
+            <div class="form-field">
+                <label for="meta-title">Title</label>
+                <input type="text" id="meta-title" required>
+            </div>
+            <div class="form-field">
+                <label for="meta-author">Author</label>
+                <input type="text" id="meta-author" required>
+            </div>
+            <div class="form-field">
+                <label for="meta-year">Year</label>
+                <input type="number" id="meta-year">
+            </div>
+            <div class="form-field">
+                <label for="meta-file">File Path</label>
+                <input type="text" id="meta-file" required>
+            </div>
+            <div class="form-field">
+                <label for="meta-template">Extraction Template</label>
+                <select id="meta-template">
+                    <option value="felter_style">Felter Style</option>
+                    <option value="bhp_style">BHP Style</option>
+                    <option value="pharmacopoeia_style">Pharmacopoeia Style</option>
+                    <option value="dispensatory_style">Dispensatory Style</option>
+                    <option value="journal_article">Journal Article</option>
+                    <option value="low_structure_fallback">Low Structure Fallback</option>
+                </select>
+            </div>
+        </div>
+
+        <h4>Lens Tags</h4>
+        <div class="form-grid">
+            <div class="form-field">
+                <label for="lens-temporal">Temporal</label>
+                <select id="lens-temporal">
+                    <option value="ancient">Ancient</option>
+                    <option value="early_modern">Early Modern</option>
+                    <option value="historical">Historical</option>
+                    <option value="mid_modern">Mid-Modern</option>
+                    <option value="contemporary">Contemporary</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="lens-epistemic">Epistemic</label>
+                <select id="lens-epistemic">
+                    <option value="folk_record">Folk Record</option>
+                    <option value="formal_system">Formal System</option>
+                    <option value="clinical_observation">Clinical Observation</option>
+                    <option value="analytical">Analytical</option>
+                    <option value="controlled_research">Controlled Research</option>
+                    <option value="regulatory_synthesis">Regulatory Synthesis</option>
+                    <option value="systematic_review">Systematic Review</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="lens-tradition">Tradition</label>
+                <select id="lens-tradition">
+                    <option value="western_folk">Western Folk</option>
+                    <option value="eclectic_physiomedicalist">Eclectic / Physiomedicalist</option>
+                    <option value="galenic_humoral">Galenic / Humoral</option>
+                    <option value="ayurvedic">Ayurvedic</option>
+                    <option value="tcm">TCM</option>
+                    <option value="unani">Unani</option>
+                    <option value="indigenous_north_american">Indigenous N. American</option>
+                    <option value="ethnobotanical">Ethnobotanical</option>
+                    <option value="modern_western_herbal">Modern Western Herbal</option>
+                    <option value="academic_biomedical">Academic Biomedical</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="lens-evidential">Evidential Weight</label>
+                <select id="lens-evidential">
+                    <option value="anecdote">Anecdote</option>
+                    <option value="case_series">Case Series</option>
+                    <option value="observational">Observational</option>
+                    <option value="clinical_trial">Clinical Trial</option>
+                    <option value="rct">RCT</option>
+                    <option value="meta_analysis">Meta-Analysis</option>
+                    <option value="expert_consensus">Expert Consensus</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-primary">Register & Index</button>
+    </form>
+</section>
+{% endblock %}

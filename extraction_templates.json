@@ -1,0 +1,40 @@
+{
+  "templates": {
+    "felter_style": {
+      "name": "Felter Style",
+      "description": "ALL-CAPS header line detection for Felter, Ellingwood, King's",
+      "boundary_strategy": "caps_header",
+      "version": "1.0"
+    },
+    "bhp_style": {
+      "name": "BHP Style",
+      "description": "Bold section header + drug name line for BHP, BHMA",
+      "boundary_strategy": "bold_header_drug_name",
+      "version": "1.0"
+    },
+    "pharmacopoeia_style": {
+      "name": "Pharmacopoeia Style",
+      "description": "Numbered section with drug name for EP, USP, BP",
+      "boundary_strategy": "numbered_section",
+      "version": "1.0"
+    },
+    "dispensatory_style": {
+      "name": "Dispensatory Style",
+      "description": "Centered header + em dash rules for Potter's, older dispensatories",
+      "boundary_strategy": "centered_header",
+      "version": "1.0"
+    },
+    "journal_article": {
+      "name": "Journal Article",
+      "description": "Full document; emit abstract + conclusions block",
+      "boundary_strategy": "full_document",
+      "version": "1.0"
+    },
+    "low_structure_fallback": {
+      "name": "Low Structure Fallback",
+      "description": "Degraded OCR or unknown structure; hit page ± 1",
+      "boundary_strategy": "page_window",
+      "version": "1.0"
+    }
+  }
+}

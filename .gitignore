@@ -1,0 +1,14 @@
+_indexes/
+!demo/_indexes/
+precis/
+config.json
+*.db
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+build/
+.DS_Store

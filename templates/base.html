@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Plant Précis Producer{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <h1>Plant Précis</h1>
+            <span class="sidebar-subtitle">Producer</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="/" class="{% if active == 'query' %}active{% endif %}">Query</a></li>
+            <li><a href="/ingestion" class="{% if active == 'ingestion' %}active{% endif %}">Ingestion</a></li>
+            <li><a href="/library" class="{% if active == 'library' %}active{% endif %}">Library</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <button id="theme-toggle" aria-label="Toggle theme">
+                <span class="theme-icon-dark">☽</span>
+                <span class="theme-icon-light">☀</span>
+            </button>
+        </div>
+    </nav>
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+    <script src="/static/app.js"></script>
+</body>
+</html>

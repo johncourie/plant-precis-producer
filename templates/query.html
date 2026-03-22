@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% set active = "query" %}
+
+{% block title %}Query — Plant Précis Producer{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h2>Query the Corpus</h2>
+    <p class="page-subtitle">Search your botanical library by plant name, binomial, or drug name.</p>
+</section>
+
+<section class="query-form">
+    <div class="search-group">
+        <input type="text" id="query-input" placeholder="e.g. yarrow, Achillea millefolium, milfoil…" autocomplete="off">
+        <button id="query-submit" class="btn-primary">Search</button>
+    </div>
+
+    <details class="lens-filters">
+        <summary>Lens Filters</summary>
+        <div class="filter-grid">
+            <div class="filter-axis">
+                <label>Temporal</label>
+                <select id="filter-temporal" multiple>
+                    <option value="ancient">Ancient (pre-1500)</option>
+                    <option value="early_modern">Early Modern (1500–1850)</option>
+                    <option value="historical">Historical (1850–1950)</option>
+                    <option value="mid_modern">Mid-Modern (1950–1994)</option>
+                    <option value="contemporary">Contemporary (1994–present)</option>
+                </select>
+            </div>
+            <div class="filter-axis">
+                <label>Epistemic</label>
+                <select id="filter-epistemic" multiple>
+                    <option value="folk_record">Folk Record</option>
+                    <option value="formal_system">Formal System</option>
+                    <option value="clinical_observation">Clinical Observation</option>
+                    <option value="analytical">Analytical</option>
+                    <option value="controlled_research">Controlled Research</option>
+                    <option value="regulatory_synthesis">Regulatory Synthesis</option>
+                    <option value="systematic_review">Systematic Review</option>
+                </select>
+            </div>
+            <div class="filter-axis">
+                <label>Tradition</label>
+                <select id="filter-tradition" multiple>
+                    <option value="western_folk">Western Folk</option>
+                    <option value="eclectic_physiomedicalist">Eclectic / Physiomedicalist</option>
+                    <option value="galenic_humoral">Galenic / Humoral</option>
+                    <option value="ayurvedic">Ayurvedic</option>
+                    <option value="tcm">TCM</option>
+                    <option value="unani">Unani</option>
+                    <option value="indigenous_north_american">Indigenous North American</option>
+                    <option value="ethnobotanical">Ethnobotanical</option>
+                    <option value="modern_western_herbal">Modern Western Herbal</option>
+                    <option value="academic_biomedical">Academic Biomedical</option>
+                </select>
+            </div>
+            <div class="filter-axis">
+                <label>Evidential Weight</label>
+                <select id="filter-evidential_weight" multiple>
+                    <option value="anecdote">Anecdote</option>
+                    <option value="case_series">Case Series</option>
+                    <option value="observational">Observational</option>
+                    <option value="clinical_trial">Clinical Trial</option>
+                    <option value="rct">RCT</option>
+                    <option value="meta_analysis">Meta-Analysis</option>
+                    <option value="expert_consensus">Expert Consensus</option>
+                </select>
+            </div>
+        </div>
+    </details>
+</section>
+
+<section id="query-results" class="results hidden">
+    <div id="results-header" class="results-header"></div>
+    <div id="results-list" class="results-list"></div>
+</section>
+{% endblock %}

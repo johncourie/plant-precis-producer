@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set active = "library" %}
+
+{% block title %}Library — Plant Précis Producer{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <h2>Library</h2>
+    <p class="page-subtitle">Manage your corpus, review source health, and export data.</p>
+</section>
+
+<section class="library-actions">
+    <button id="export-manifest" class="btn-secondary">Export Manifest</button>
+    <label class="btn-secondary" for="import-manifest-input">Import Manifest
+        <input type="file" id="import-manifest-input" accept=".json" hidden>
+    </label>
+</section>
+
+<section id="sources-table" class="sources-table">
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Year</th>
+                <th>Template</th>
+                <th>OCR</th>
+                <th>Status</th>
+                <th>Verified</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="sources-body">
+        </tbody>
+    </table>
+    <p id="sources-empty" class="empty-state">No sources in library. Add texts via the Ingestion interface.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+{
+  "port": 7734,
+  "data_dir": ".",
+  "zotero_enabled": false,
+  "zotero_library_path": null,
+  "default_output_formats": ["pdf"],
+  "dark_mode": true
+}
