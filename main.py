@@ -14,6 +14,7 @@ from core.database import init_db, get_connection
 from core.synonym_resolver import SynonymResolver
 from core.query import QueryEngine
 from core.compile_json import export_json
+from core.compile_pdf import compile_precis, CompilationError
 from core.ingestion import probe_source, register_source, build_index
 
 CONFIG_PATH = "config.json"
@@ -93,6 +94,25 @@ async def api_export(request: Request):
     )
     output_path = export_json(results)
     return JSONResponse({"path": output_path, "results": results})
+
+
+@app.post("/api/query/compile-pdf")
+async def api_compile_pdf(request: Request):
+    body = await request.json()
+    engine = QueryEngine(DATA_DIR)
+    results = engine.search(
+        input_string=body.get("input_string", ""),
+        lens_filters=body.get("lens_filters"),
+    )
+    try:
+        pdf_path = compile_precis(results, data_dir=DATA_DIR)
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename=Path(pdf_path).name,
+        )
+    except CompilationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @app.get("/api/sources")
