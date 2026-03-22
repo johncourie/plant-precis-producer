@@ -114,6 +114,15 @@ async def api_export(request: Request):
     return JSONResponse({"path": output_path, "results": results})
 
 
+@app.get("/precis/{filename:path}")
+async def serve_precis_file(filename: str):
+    file_path = Path("precis") / filename
+    if not file_path.exists() or not file_path.resolve().is_relative_to(Path("precis").resolve()):
+        raise HTTPException(status_code=404, detail="File not found")
+    media = "application/pdf" if filename.endswith(".pdf") else "application/json"
+    return FileResponse(str(file_path), media_type=media, filename=filename)
+
+
 @app.post("/api/query/compile-pdf")
 async def api_compile_pdf(request: Request):
     body = await request.json()

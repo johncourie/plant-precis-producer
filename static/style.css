@@ -492,6 +492,28 @@ body {
 .status-pending { background: rgba(176, 138, 62, 0.15); color: var(--warning); }
 .status-failed { background: rgba(160, 64, 64, 0.15); color: var(--danger); }
 
+/* --- Export Buttons --- */
+
+.results-export {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* --- Actions Cell --- */
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.actions-cell button {
+    margin-right: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    font-size: 0.78rem;
+}
+
 /* --- Utility --- */
 
 .hidden { display: none !important; }
