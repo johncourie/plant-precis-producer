@@ -1,5 +1,6 @@
 _indexes/
 !demo/_indexes/
+_uploads/
 precis/
 config.json
 *.db
