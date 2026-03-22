@@ -118,6 +118,10 @@ class QueryEngine:
         if not pages_with_hits:
             return None
 
+        # Degraded sources emit hit page only — no range expansion (spec invariant)
+        if source.get("degraded"):
+            pages_with_hits = [pages_with_hits[0]]
+
         pages_with_hits.sort()
         page_offset = source.get("page_offset", 0)
 
@@ -155,7 +159,9 @@ class QueryEngine:
                 "pages": page_range,
                 "page_offset_applied": page_offset,
                 "hit_page_numbers": pages_with_hits,
-                "boundary_method": "index_search",
+                "boundary_method": "index_hit_range",
+                # Placeholder: uses OCR confidence until phase 4 replaces with
+                # true boundary detection confidence from extraction templates
                 "confidence": source.get("ocr_confidence", 0.0),
             },
             "citation": citation,

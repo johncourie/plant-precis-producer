@@ -26,6 +26,14 @@ def init_db(data_dir: str = ".") -> None:
     try:
         conn.executescript(SCHEMA_SQL)
         conn.commit()
+
+        # Seed synonym data if table is empty
+        count = conn.execute("SELECT COUNT(*) as cnt FROM synonyms").fetchone()["cnt"]
+        if count == 0:
+            seed_path = Path(data_dir) / "seed_data.sql"
+            if seed_path.exists():
+                conn.executescript(seed_path.read_text(encoding="utf-8"))
+                conn.commit()
     finally:
         conn.close()
 

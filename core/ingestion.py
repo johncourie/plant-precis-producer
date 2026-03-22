@@ -10,6 +10,7 @@ from typing import Optional
 import pdfplumber
 
 from core.database import get_connection
+from core.synonym_resolver import SynonymResolver, seed_synonyms_from_powo
 
 
 def ocr_confidence(text: str) -> float:
@@ -143,6 +144,14 @@ def build_index(source_id: str, data_dir: str = ".") -> str:
                 "UPDATE sources SET index_status = 'ready', index_file = ?, last_indexed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
                 (str(index_path), source_id),
             )
+
+            # Enforce degraded flag based on OCR confidence (spec invariant)
+            if source["ocr_confidence"] is not None and source["ocr_confidence"] < 0.6:
+                conn.execute(
+                    "UPDATE sources SET degraded = 1, degraded_reason = 'ocr_confidence_below_threshold', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (source_id,),
+                )
+
             conn.commit()
             return str(index_path)
 
@@ -199,6 +208,14 @@ def register_source(metadata: dict, data_dir: str = ".") -> str:
             ),
         )
         conn.commit()
+
+        # Auto-seed synonyms from POWO if none exist for this plant
+        canonical = metadata.get("canonical_binomial")
+        if canonical:
+            resolver = SynonymResolver(data_dir)
+            if not resolver.has_synonyms(canonical):
+                seed_synonyms_from_powo(canonical, data_dir)
+
         return metadata["id"]
     finally:
         conn.close()
