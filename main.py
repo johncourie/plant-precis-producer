@@ -86,7 +86,7 @@ async def api_query(request: Request):
     )
 
     output_formats = body.get("output_formats", [])
-    response = {"results": results}
+    response = dict(results)
 
     if "json" in output_formats:
         json_path = export_json(results)
