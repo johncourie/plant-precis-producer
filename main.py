@@ -14,7 +14,7 @@ from core.database import init_db, get_connection
 from core.synonym_resolver import SynonymResolver
 from core.query import QueryEngine
 from core.compile_json import export_json
-from core.ingestion import probe_pdf, register_source, build_index
+from core.ingestion import probe_source, register_source, build_index
 
 CONFIG_PATH = "config.json"
 DATA_DIR = "."
@@ -143,7 +143,7 @@ async def api_probe(file: UploadFile = File(...)):
         content = await file.read()
         f.write(content)
     try:
-        result = probe_pdf(str(tmp_path))
+        result = probe_source(str(tmp_path))
         return JSONResponse(result)
     finally:
         tmp_path.unlink(missing_ok=True)

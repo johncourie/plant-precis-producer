@@ -143,9 +143,12 @@
     });
   }
 
+  const SUPPORTED_EXTENSIONS = ['.pdf', '.epub', '.txt', '.text', '.html', '.htm'];
+
   async function handleFile(file) {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Only PDF files are supported.');
+    const ext = '.' + file.name.split('.').pop().toLowerCase();
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      alert('Unsupported format. Accepted: PDF, EPUB, TXT, HTML.');
       return;
     }
     const form = new FormData();
