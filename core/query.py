@@ -118,10 +118,6 @@ class QueryEngine:
         if not pages_with_hits:
             return None
 
-        # Degraded sources emit hit page only — no range expansion (spec invariant)
-        if source.get("degraded"):
-            pages_with_hits = [pages_with_hits[0]]
-
         pages_with_hits.sort()
         page_offset = source.get("page_offset", 0)
 

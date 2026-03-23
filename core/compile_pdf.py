@@ -179,14 +179,32 @@ def _temporal_sort_key(result: dict) -> int:
 def _extract_source_text(result: dict, data_dir: str) -> tuple[str, list[str]]:
     """Read monograph text from the source's index file for the hit pages.
 
+    N=1 enforcement: degraded sources and low_structure_fallback templates
+    emit only exact hit pages with no surrounding context expansion.
+    Non-degraded sources with other templates get ±1 page context window.
+
     Returns (extracted_text, extra_flags).
     """
     source_id = result["source"]["id"]
-    hit_pages = set(result["extraction"].get("hit_page_numbers", []))
+    raw_hit_pages = result["extraction"].get("hit_page_numbers", [])
     extra_flags = []
 
-    if not hit_pages:
+    if not raw_hit_pages:
         return "", ["no_hit_pages"]
+
+    # Determine whether to expand context window
+    is_degraded = "degraded_ocr" in result.get("flags", [])
+    template = result["source"].get("extraction_template", "")
+    expand_context = not is_degraded and template != "low_structure_fallback"
+
+    if expand_context:
+        # Add ±1 page neighbors for non-degraded sources
+        expanded = set()
+        for p in raw_hit_pages:
+            expanded.update([max(1, p - 1), p, p + 1])
+        hit_pages = expanded
+    else:
+        hit_pages = set(raw_hit_pages)
 
     # Locate index file
     index_path = Path(data_dir) / "_indexes" / f"{source_id}.txt"
