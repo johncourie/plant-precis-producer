@@ -240,11 +240,46 @@ def _suggest_template(front_text: str, back_text: str) -> tuple[str, float]:
     return "low_structure_fallback", 0.3
 
 
+_ZONE_TEMPLATES = {"felter_style", "dispensatory_style"}
+
+_MM_ZONE_MARKERS = re.compile(
+    r"(?:common\s+name|materia\s+medica|part\s+used|parts?\s+employed|botanical\s+name)",
+    re.IGNORECASE,
+)
+
+
+def _detect_materia_medica_zone(pages: list[tuple[int, str]]) -> int | None:
+    """Detect the start line of the materia medica section.
+
+    Looks for an ALL-CAPS header (>=10 chars) preceded within 20 lines
+    by a zone marker like "COMMON NAME", "MATERIA MEDICA", or "Part used:".
+
+    Returns the 1-based line number of the first qualifying ALL-CAPS header,
+    or None if no zone is detected.
+    """
+    all_lines = []
+    for page_num, text in pages:
+        for line in text.split("\n"):
+            all_lines.append(line)
+
+    caps_re = re.compile(r"^[A-Z][A-Z\s]{9,}$")
+
+    for i, line in enumerate(all_lines):
+        if caps_re.match(line.strip()):
+            # Look backwards up to 20 lines for a zone marker
+            start = max(0, i - 20)
+            window = "\n".join(all_lines[start:i])
+            if _MM_ZONE_MARKERS.search(window):
+                return i + 1  # 1-based
+    return None
+
+
 def build_index(source_id: str, data_dir: str = ".") -> str:
     """Build a text index for a source. Returns path to index file.
 
     Uses atomic swap: builds to temp file, then moves into place.
     Works for all supported formats via _extract_text_by_format.
+    For felter_style/dispensatory_style, detects materia medica zone boundary.
     """
     conn = get_connection(data_dir)
     try:
@@ -274,8 +309,25 @@ def build_index(source_id: str, data_dir: str = ".") -> str:
                         f.write(text)
                         f.write("\n\n")
 
+            # Detect materia medica zone for structured templates
+            mm_line = None
+            if source["extraction_template"] in _ZONE_TEMPLATES:
+                mm_line = _detect_materia_medica_zone(pages)
+
             # Atomic swap
             shutil.move(tmp_path, str(index_path))
+
+            # Store zone detection result in notes
+            notes_update = ""
+            if mm_line is not None:
+                existing_notes = source["notes"] or ""
+                # Remove any previous materia_medica_line annotation
+                cleaned = re.sub(r"materia_medica_line:\s*\d+\s*;?\s*", "", existing_notes).strip()
+                new_notes = f"materia_medica_line: {mm_line}" + ("; " + cleaned if cleaned else "")
+                conn.execute(
+                    "UPDATE sources SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (new_notes, source_id),
+                )
 
             conn.execute(
                 "UPDATE sources SET index_status = 'ready', index_file = ?, last_indexed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",

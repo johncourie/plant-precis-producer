@@ -11,6 +11,8 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
+from core.database import get_connection
+
 
 class CompilationError(Exception):
     """Raised when compilation cannot produce a valid PDF (e.g. zero content)."""
@@ -86,6 +88,12 @@ def compile_precis(
     # Step 1: Group and sort
     grouped = _group_results(results)
 
+    # Enrich results with source notes and query synonyms for zone detection
+    _enrich_with_notes(results, data_dir)
+    synonyms = query_results["query"].get("synonyms_matched", [])
+    for result in results:
+        result["_query_synonyms"] = synonyms
+
     # Step 2: Extract text from indexes
     extracted = {}
     has_content = False
@@ -120,6 +128,24 @@ def compile_precis(
 
     _render_pdf(html, str(output_path))
     return str(output_path)
+
+
+# ---------------------------------------------------------------------------
+# Enrichment: attach source notes for zone detection
+# ---------------------------------------------------------------------------
+
+def _enrich_with_notes(results: list, data_dir: str) -> None:
+    """Attach _source_notes to each result from the DB notes field."""
+    conn = get_connection(data_dir)
+    try:
+        for result in results:
+            source_id = result["source"]["id"]
+            row = conn.execute(
+                "SELECT notes FROM sources WHERE id = ?", (source_id,)
+            ).fetchone()
+            result["_source_notes"] = row["notes"] if row and row["notes"] else ""
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------------------------
@@ -176,12 +202,22 @@ def _temporal_sort_key(result: dict) -> int:
 # Step 2: Extract text from index files
 # ---------------------------------------------------------------------------
 
+_CAPS_HEADER_RE = re.compile(r"^[A-Z][A-Z\s]{9,}$")
+_ZONE_AWARE_TEMPLATES = {"felter_style", "dispensatory_style"}
+
+
 def _extract_source_text(result: dict, data_dir: str) -> tuple[str, list[str]]:
     """Read monograph text from the source's index file for the hit pages.
 
-    N=1 enforcement: degraded sources and low_structure_fallback templates
-    emit only exact hit pages with no surrounding context expansion.
-    Non-degraded sources with other templates get ±1 page context window.
+    For felter_style/dispensatory_style with a detected materia medica zone:
+      - Prefer hits inside the zone; apply ALL-CAPS boundary detection to
+        scope the monograph (from the ALL-CAPS header to the next one).
+      - If no hit falls in the zone, return clinical mention hits with a
+        clinical_mention_only flag.
+
+    For other templates:
+      - Degraded / low_structure_fallback: exact hit pages, no expansion.
+      - Non-degraded with other templates: ±1 page context window.
 
     Returns (extracted_text, extra_flags).
     """
@@ -192,19 +228,8 @@ def _extract_source_text(result: dict, data_dir: str) -> tuple[str, list[str]]:
     if not raw_hit_pages:
         return "", ["no_hit_pages"]
 
-    # Determine whether to expand context window
     is_degraded = "degraded_ocr" in result.get("flags", [])
     template = result["source"].get("extraction_template", "")
-    expand_context = not is_degraded and template != "low_structure_fallback"
-
-    if expand_context:
-        # Add ±1 page neighbors for non-degraded sources
-        expanded = set()
-        for p in raw_hit_pages:
-            expanded.update([max(1, p - 1), p, p + 1])
-        hit_pages = expanded
-    else:
-        hit_pages = set(raw_hit_pages)
 
     # Locate index file
     index_path = Path(data_dir) / "_indexes" / f"{source_id}.txt"
@@ -216,33 +241,132 @@ def _extract_source_text(result: dict, data_dir: str) -> tuple[str, list[str]]:
     except Exception:
         return "", ["source_unavailable"]
 
-    # Parse --- PAGE N --- blocks, collect text for hit pages
-    pages_found = {}
+    # Parse all pages from index
+    all_pages = _parse_index_pages(raw)
+
+    # --- Zone-aware extraction for structured herbals ---
+    mm_start_line = _get_mm_start_line(result)
+    if template in _ZONE_AWARE_TEMPLATES and mm_start_line is not None and not is_degraded:
+        text, zone_flags = _extract_with_zone(
+            all_pages, raw_hit_pages, mm_start_line, result,
+        )
+        extra_flags.extend(zone_flags)
+        if text.strip():
+            return text.strip(), extra_flags
+        # Zone extraction returned nothing — fall through to standard
+
+    # --- Standard extraction ---
+    expand_context = not is_degraded and template != "low_structure_fallback"
+
+    if expand_context:
+        expanded = set()
+        for p in raw_hit_pages:
+            expanded.update([max(1, p - 1), p, p + 1])
+        hit_pages = expanded
+    else:
+        hit_pages = set(raw_hit_pages)
+
+    pages_found = {p: text for p, text in all_pages.items() if p in hit_pages}
+
+    missing = hit_pages - set(pages_found.keys())
+    if missing:
+        extra_flags.append("page_range_clamped")
+
+    text = "\n\n".join(pages_found[p] for p in sorted(pages_found.keys()))
+    return text.strip(), extra_flags
+
+
+def _parse_index_pages(raw: str) -> dict[int, str]:
+    """Parse a --- PAGE N --- delimited index file into {page_num: text}."""
+    pages = {}
     current_page = 0
     current_lines = []
 
     for line in raw.split("\n"):
         page_match = re.match(r"--- PAGE (\d+) ---", line)
         if page_match:
-            if current_page in hit_pages and current_lines:
-                pages_found[current_page] = "\n".join(current_lines)
+            if current_page > 0 and current_lines:
+                pages[current_page] = "\n".join(current_lines)
             current_page = int(page_match.group(1))
             current_lines = []
         else:
             current_lines.append(line)
 
-    # Flush last page
-    if current_page in hit_pages and current_lines:
-        pages_found[current_page] = "\n".join(current_lines)
+    if current_page > 0 and current_lines:
+        pages[current_page] = "\n".join(current_lines)
 
-    # Check for clamped pages (requested but not found in index)
-    missing = hit_pages - set(pages_found.keys())
-    if missing:
-        extra_flags.append("page_range_clamped")
+    return pages
 
-    # Assemble text in page order
+
+def _get_mm_start_line(result: dict) -> int | None:
+    """Extract materia_medica_line from source notes, if present."""
+    # The compile module doesn't have direct DB access — the notes field
+    # isn't in the query result. Check the extraction or source dict for it.
+    # For now, look in source metadata passed through the result.
+    notes = result.get("_source_notes", "")
+    if not notes:
+        return None
+    m = re.search(r"materia_medica_line:\s*(\d+)", notes)
+    return int(m.group(1)) if m else None
+
+
+def _extract_with_zone(
+    all_pages: dict[int, str],
+    hit_page_numbers: list[int],
+    mm_start_line: int,
+    result: dict,
+) -> tuple[str, list[str]]:
+    """Zone-aware extraction for felter_style / dispensatory_style.
+
+    Scans the materia medica zone for ALL-CAPS monograph headers that
+    match the search terms. If found, extracts the bounded monograph.
+    If no match in the zone, flags as clinical_mention_only.
+    """
+    extra_flags = []
+
+    # Build flat line list
+    all_lines = []
+    for page_num in sorted(all_pages.keys()):
+        for line in all_pages[page_num].split("\n"):
+            all_lines.append(line)
+
+    # Get search terms from the query result to match against zone content
+    search_terms = _get_search_terms(result)
+
+    # Scan the MM zone for caps-bounded monograph sections that contain
+    # any search term. This is the authoritative zone-hit check.
+    zone_lines = all_lines[mm_start_line - 1:]  # 0-indexed slice
+
+    # Find ALL-CAPS header positions within the zone
+    caps_positions = []
+    for i, line in enumerate(zone_lines):
+        if _CAPS_HEADER_RE.match(line.strip()):
+            caps_positions.append(i)
+
+    if caps_positions:
+        # Extract each monograph section and check for search term matches
+        for idx, start in enumerate(caps_positions):
+            end = caps_positions[idx + 1] if idx + 1 < len(caps_positions) else len(zone_lines)
+            section_text = "\n".join(zone_lines[start:end])
+            section_lower = section_text.lower()
+            if any(term in section_lower for term in search_terms):
+                # Found a monograph section containing the search term
+                return section_text.strip(), extra_flags
+
+    # No monograph section in the zone contains the search terms.
+    # Return the standard hit pages with a clinical_mention_only flag.
+    pages_found = {p: all_pages[p] for p in hit_page_numbers if p in all_pages}
     text = "\n\n".join(pages_found[p] for p in sorted(pages_found.keys()))
+    extra_flags.append("clinical_mention_only")
     return text.strip(), extra_flags
+
+
+def _get_search_terms(result: dict) -> list[str]:
+    """Extract lowercase search terms from the enriched query result."""
+    terms = []
+    for syn in result.get("_query_synonyms", []):
+        terms.append(syn.lower())
+    return terms if terms else [""]
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +500,7 @@ def _source_section_html(result: dict, extracted: dict[str, str]) -> str:
         "page_range_clamped": "page range clamped",
         "boundary_fallback": "boundary fallback",
         "no_hit_pages": "no hit pages",
+        "clinical_mention_only": "clinical mention only",
     }
     visible_flags = [flag_labels.get(f, f) for f in flags if f in flag_labels]
     if visible_flags:
